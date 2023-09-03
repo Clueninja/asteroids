@@ -1,6 +1,5 @@
-use bevy::sprite::Material2d;
-use bevy::window::{PrimaryWindow, Cursor};
-use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::window::PrimaryWindow;
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -47,8 +46,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    server: Res<AssetServer>,
-    mut textures: ResMut<Assets<Image>>
+    asset_server: Res<AssetServer>,
 ) {
 
     // Circle
@@ -93,7 +91,7 @@ fn setup(
         transform: Transform::from_translation(Vec3::new(150., 0., 0.)),
         ..default()
     });
-    let image: Handle<Image> = server.load("spaceship.png");
+    let image: Handle<Image> = asset_server.load("spaceship.png");
     commands.spawn(
         SpriteBundle{
             sprite: Sprite{
@@ -125,7 +123,7 @@ fn cursor_position(
 ) {
     let mut player_transform = player_query.single_mut();
     // get the player translation in 2D
-    let player_translation = player_transform.translation.xy();
+    //let player_translation = player_transform.translation.xy();
 
     // Games typically only have one window (the primary window)
     if let Some(position) = q_windows.single().cursor_position() {
