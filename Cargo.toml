@@ -10,6 +10,11 @@ edition = "2021"
 [profile.dev]
 opt-level = 1
 
+[profile.release]
+lto = "thin"
+opt-level = 'z'
+
+
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
@@ -20,3 +25,4 @@ resolver = "2" # Important! wgpu/Bevy needs this!
 
 [dependencies]
 bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+rand = "0.8.5"

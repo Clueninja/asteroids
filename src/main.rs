@@ -1,5 +1,13 @@
 use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use rand::Rng;
+use rand::seq::SliceRandom;
+
+#[derive(Resource)]
+struct Score(u32);
+
+#[derive(Resource)]
+struct AsteriodSpawner(Timer);
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -8,13 +16,16 @@ struct Velocity(Vec2);
 struct Health(f32);
 
 #[derive(Component)]
+struct Timeout(f32);
+
+#[derive(Component)]
 struct PlayerID(u32);
 
 #[derive(Component)]
 struct Bullet;
 
 #[derive(Component)]
-struct Timeout(f32);
+struct Asteriod;
 
 fn main() {
     App::new()
@@ -28,9 +39,11 @@ fn main() {
                 move_player,
                 fire_bullet,
                 update_timeout,
-                move_camera_with_player
-            ),
-        )
+                move_camera_with_player,
+                spawn_asteriods,
+                handle_asteriod_bullet_collision,
+                update_score
+            ))
         .run()
 }
 
@@ -44,65 +57,30 @@ fn setup_window(
 // Spawn all Normal Entities on Startup
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
 
-    // Circle
-    commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(50.).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::PURPLE)),
-            transform: Transform::from_translation(Vec3::new(-150., 0., 0.)),
-            ..default()
-        },
-        Velocity(Vec2 { x: 10., y: 0. }),
-    ));
+    let text_style = TextStyle { font: asset_server.load("fonts/FiraMono-Medium.ttf"), font_size:32.0, color :Color::RED};
 
-    // Rectangle
-    commands.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::rgb(0.25, 0.25, 0.75),
-            custom_size: Some(Vec2::new(50.0, 100.0)),
-            ..default()
-        },
-        transform: Transform::from_translation(Vec3::new(-50., 0., 0.)),
-        ..default()
-    });
-
-    // Quad
-    commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes
-                .add(shape::Quad::new(Vec2::new(50., 100.)).into())
-                .into(),
-            material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
-            transform: Transform::from_translation(Vec3::new(50., 0., 0.)),
-            ..default()
-        },
-        Velocity(Vec2 { x: 20., y: -10. }),
-    ));
-
-    // Hexagon
-    commands.spawn(MaterialMesh2dBundle {
-        mesh: meshes.add(shape::RegularPolygon::new(50., 6).into()).into(),
-        material: materials.add(ColorMaterial::from(Color::TURQUOISE)),
-        transform: Transform::from_translation(Vec3::new(150., 0., 0.)),
-        ..default()
-    });
-    let image: Handle<Image> = asset_server.load("spaceship.png");
     commands.spawn(
         SpriteBundle{
             sprite: Sprite{
                 custom_size: Some(Vec2::new(32., 32.)),
                 ..default()
             },
-            texture: image,
+            texture: asset_server.load("spaceship.png"),
             ..default()
         }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.)));
 
         commands.spawn(Camera2dBundle::default());
+
+        commands.spawn(Text2dBundle{
+                text: Text { sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], ..default()},
+                ..default()
+            });
+
+        commands.insert_resource(AsteriodSpawner(Timer::from_seconds(2.0, TimerMode::Repeating)));
+        commands.insert_resource(Score(0));
 }
 
 
@@ -111,6 +89,93 @@ fn move_camera_with_player(
     player: Query<& Transform, (With<PlayerID>, Without<Camera2d>)>
 ){
     camera.single_mut().translation = player.single().translation;
+}
+
+fn update_score(
+    score: Res<Score>,
+    mut scoreboard_query: Query<&mut Text>
+){
+    scoreboard_query.single_mut().sections[1].value = score.0.to_string();
+}
+
+fn handle_asteriod_bullet_collision(
+    mut commands: Commands,
+    mut score: ResMut<Score>,
+    bullet_query: Query<(Entity, &Transform), (With<Bullet>, Without<Asteriod>)>,
+    mut asteriod_query: Query<(Entity, &Transform, &mut Health), (With<Asteriod>, Without<Bullet>)>
+){
+    for(asteriod, asteriod_transform,mut asteriod_health) in &mut asteriod_query{
+        for (bullet, bullet_transform) in &bullet_query{
+            if bullet_transform.translation.distance(asteriod_transform.translation) < 50.0{
+                asteriod_health.0-= 10.0;
+                if asteriod_health.0<=0.0{
+                    score.0+=1;
+                    commands.entity(asteriod).despawn();
+                }
+                commands.entity(bullet).despawn();
+            }
+        }
+    }
+}
+
+
+fn spawn_asteriods(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut asteriod_spawner: ResMut<AsteriodSpawner>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    player_query: Query<&Transform, With<PlayerID>>,
+    window_query: Query<&Window, With<PrimaryWindow>>
+){
+    asteriod_spawner.0.tick(time.delta());
+
+    if asteriod_spawner.0.finished(){
+        // spawn asteriod on the edges of the visible screen
+        let dim = &window_query.single().resolution;
+        let player_pos = player_query.single().translation;
+        // find all possible spawn areas
+        let spawn_areas = vec![
+            (
+                player_pos.x-dim.width()/2.0 -50.0 ..  player_pos.x-dim.width()/2.0 -20.0,
+                player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
+            ),
+            (
+                player_pos.x+dim.width()/2.0 +20.0 ..  player_pos.x+dim.width()/2.0 + 50.0, 
+                player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
+            ),
+            (
+                player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
+                player_pos.y+dim.height()/2.0 +20.0 ..  player_pos.y+dim.height()/2.0 + 50.0
+            ),
+            (
+                player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
+                player_pos.y-dim.height()/2.0 -50.0 ..  player_pos.y-dim.height()/2.0 -20.0
+            )];
+        // Pick one area for the asteriod to spawn
+        let (x, y) = spawn_areas.choose(&mut rand::thread_rng()).unwrap();
+        // set the translation of the asteriod
+        let translation = Vec3::new(
+            rand::thread_rng().gen_range(x.clone()),
+            rand::thread_rng().gen_range(y.clone()),
+            0.0
+        );
+        // Spawn the new asteriod with the correct rotation to move towards the player
+        commands.spawn(
+            MaterialMesh2dBundle {
+                mesh: meshes.add(shape::Circle::new(50.).into()).into(),
+                material: materials.add(ColorMaterial::from(Color::PURPLE)),
+                transform: Transform{
+                    translation,
+                    rotation: Quat::from_rotation_arc(Vec3::Y, (player_pos-translation).normalize()),
+                    ..default()
+                },
+                ..default()
+            }).insert(Velocity(Vec2::new(0., 100.)))
+            .insert(Timeout(20.0))
+            .insert(Health(50.0))
+            .insert(Asteriod);
+    }
 }
 
 
@@ -123,7 +188,6 @@ fn cursor_position(
 ) {
     let mut player_transform = player_query.single_mut();
     // get the player translation in 2D
-    //let player_translation = player_transform.translation.xy();
 
     // Games typically only have one window (the primary window)
     if let Some(position) = q_windows.single().cursor_position() {
@@ -131,9 +195,9 @@ fn cursor_position(
         cloned.x = cloned.x - q_windows.single().resolution.width() / 2.;
         cloned.y = q_windows.single().resolution.height() / 2. - cloned.y;
 
-        let to_player = (cloned).normalize();
+        let to_player = cloned.normalize();
 
-        // get the quaternion to rotate from the initial enemy facing direction to the direction
+        // get the quaternion to rotate the player to face the cursor
         // facing the player
         let rotate_to_player = Quat::from_rotation_arc(Vec3::Y, to_player.extend(0.));
         player_transform.rotation = rotate_to_player;
@@ -163,7 +227,10 @@ fn fire_bullet(
 }
 
 // increase and decrease player speed
-fn move_player(input: Res<Input<KeyCode>>, mut query: Query<&mut Velocity, With<PlayerID>>) {
+fn move_player(
+    input: Res<Input<KeyCode>>, 
+    mut query: Query<&mut Velocity, With<PlayerID>>
+) {
     if input.pressed(KeyCode::W) {
         if query.single().0.y < 200.{
             query.single_mut().0.y += 10.;
@@ -194,7 +261,10 @@ fn update_timeout(
 }
 
 // move transforms for entities with a Velocity Component
-fn update_transforms(time: Res<Time>, mut moving_object: Query<(&Velocity, &mut Transform)>) {
+fn update_transforms(
+    time: Res<Time>, 
+    mut moving_object: Query<(&Velocity, &mut Transform)>
+) {
     for (vel, mut transform) in &mut moving_object {
         let mut vec = vel.0.clone().extend(0.);
         vec = transform.rotation.mul_vec3(vec);
