@@ -1,5 +1,5 @@
 use bevy::sprite::Material2d;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, Cursor};
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
 
 #[derive(Component)]
@@ -20,7 +20,7 @@ struct Timeout(f32);
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup_window, setup))
         .add_systems(
             Update,
             (
@@ -29,9 +29,17 @@ fn main() {
                 move_player,
                 fire_bullet,
                 update_timeout,
+                move_camera_with_player
             ),
         )
         .run()
+}
+
+fn setup_window(
+    mut win: Query<&mut Window, With<PrimaryWindow>>,
+){
+    win.single_mut().title = String::from("Asteriods");
+    win.single_mut().cursor.icon = CursorIcon::Crosshair;
 }
 
 // Spawn all Normal Entities on Startup
@@ -94,8 +102,19 @@ fn setup(
             },
             texture: image,
             ..default()
-        }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.),Camera2dBundle::default()));
+        }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.)));
+
+        commands.spawn(Camera2dBundle::default());
 }
+
+
+fn move_camera_with_player(
+    mut camera: Query<&mut Transform, (With<Camera2d>, Without<PlayerID>)>,
+    player: Query<& Transform, (With<PlayerID>, Without<Camera2d>)>
+){
+    camera.single_mut().translation = player.single().translation;
+}
+
 
 // Converts the Cursor position to screen coordinates, then rotates the player to the Cursor
 // could make a seperate Component for objects that always rotate to the cursor
