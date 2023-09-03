@@ -1,5 +1,5 @@
-use bevy::input::keyboard::KeyboardInput;
 use bevy::sprite::Material2d;
+use bevy::window::PrimaryWindow;
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::MaterialMesh2dBundle};
 
 #[derive(Component)]
@@ -16,15 +16,6 @@ struct Bullet;
 
 #[derive(Component)]
 struct Timeout(f32);
-
-#[derive(Bundle)]
-struct PlayerBundle<M: Material2d> {
-    id: PlayerID,
-    health: Health,
-    vel: Velocity,
-    #[bundle()]
-    mat: MaterialMesh2dBundle<M>,
-}
 
 fn main() {
     App::new()
@@ -48,6 +39,8 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    server: Res<AssetServer>,
+    mut textures: ResMut<Assets<Image>>
 ) {
 
     // Circle
@@ -92,19 +85,17 @@ fn setup(
         transform: Transform::from_translation(Vec3::new(150., 0., 0.)),
         ..default()
     });
-    commands.spawn(PlayerBundle {
-        mat: MaterialMesh2dBundle {
-            mesh: meshes.add(shape::RegularPolygon::new(50., 3).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::TURQUOISE)),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+    let image: Handle<Image> = server.load("spaceship.png");
+    commands.spawn(
+        SpriteBundle{
+            sprite: Sprite{
+                custom_size: Some(Vec2::new(32., 32.)),
+                ..default()
+            },
+            texture: image,
             ..default()
-        },
-        vel: Velocity(Vec2 { x: 0., y: 0. }),
-        id: PlayerID(0),
-        health: Health(100.),
-    }).insert(Camera2dBundle::default());
+        }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.),Camera2dBundle::default()));
 }
-use bevy::window::PrimaryWindow;
 
 // Converts the Cursor position to screen coordinates, then rotates the player to the Cursor
 // could make a seperate Component for objects that always rotate to the cursor
@@ -123,15 +114,12 @@ fn cursor_position(
         cloned.x = cloned.x - q_windows.single().resolution.width() / 2.;
         cloned.y = q_windows.single().resolution.height() / 2. - cloned.y;
 
-        println!("{}, {}", cloned, player_translation);
         let to_player = (cloned).normalize();
 
         // get the quaternion to rotate from the initial enemy facing direction to the direction
         // facing the player
         let rotate_to_player = Quat::from_rotation_arc(Vec3::Y, to_player.extend(0.));
         player_transform.rotation = rotate_to_player;
-    } else {
-        println!("Cursor is not in the game window.");
     }
 }
 
