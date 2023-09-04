@@ -90,7 +90,8 @@ fn setup(
         commands.spawn(Camera2dBundle::default());
 
         commands.spawn(Text2dBundle{
-                text: Text { sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], ..default()},
+                text: Text { 
+                    sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], ..default()},
                 ..default()
             });
 
