@@ -9,8 +9,10 @@
     <h1>
         This is our game, Asteriods!
         Hope you enjoy :)
-    </h1>
-    <script src="asteriods.js"></script>
-    <canvas class="bevy-instance__canvas" id="bevy" width="1168" height="661" tabindex="0" data-raw-handle="1" style="width: 1168px; height: 661px; aspect-ratio: 1.77778 / 1;" alt="App" cursor="auto"></canvas>
+    </h1> 
+    <script type="module">
+        import init from './asteriods.js'
+        init()
+      </script>
 </body>
 </html>
