@@ -2,12 +2,17 @@ use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 use rand::seq::SliceRandom;
+use bevy::utils::Duration;
 
 #[derive(Resource)]
 struct Score(u32);
 
 #[derive(Resource)]
-struct AsteriodSpawner(Timer);
+struct AsteriodSpawner{
+    timer: Timer,
+    current_duration: f32
+}
+    
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -27,6 +32,11 @@ struct Bullet;
 #[derive(Component)]
 struct Asteriod;
 
+#[derive(Component)]
+struct SafeZone;
+
+
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -42,7 +52,8 @@ fn main() {
                 move_camera_with_player,
                 spawn_asteriods,
                 handle_asteriod_bullet_collision,
-                update_score
+                update_score,
+                check_player_in_safezone
             ))
         .run()
 }
@@ -58,9 +69,19 @@ fn setup_window(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>
 ) {
 
     let text_style = TextStyle { font: asset_server.load("fonts/FiraMono-Medium.ttf"), font_size:32.0, color :Color::RED};
+
+    commands.spawn(
+        MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Circle::new(2000.).into()).into(),
+            material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
+            transform: Transform::from_xyz(0.0, 0.0, -20.0),
+            ..default()
+        }).insert(SafeZone);
 
     commands.spawn(
         SpriteBundle{
@@ -79,7 +100,7 @@ fn setup(
                 ..default()
             });
 
-        commands.insert_resource(AsteriodSpawner(Timer::from_seconds(2.0, TimerMode::Repeating)));
+        commands.insert_resource(AsteriodSpawner{timer: Timer::from_seconds(2.0, TimerMode::Repeating), current_duration: 2.0});
         commands.insert_resource(Score(0));
 }
 
@@ -90,6 +111,23 @@ fn move_camera_with_player(
 ){
     camera.single_mut().translation = player.single().translation;
 }
+
+fn check_player_in_safezone(
+    mut player_query: Query<(&Transform, &mut Health), (With<PlayerID>, Without<SafeZone>)>,
+    safezone_query: Query<&Transform, (With<SafeZone>, Without<PlayerID>)>,
+    mut asteriod_spawner: ResMut<AsteriodSpawner>
+){
+    let (player_transform, mut player_health ) = player_query.single_mut();
+    if player_transform.translation.distance(safezone_query.single().translation) > 2000.0{
+        asteriod_spawner.current_duration = 0.5;
+        asteriod_spawner.timer.set_duration(Duration::from_secs_f32(0.5));
+    }
+    else if asteriod_spawner.current_duration != 2.0{
+        asteriod_spawner.current_duration = 2.0;
+        asteriod_spawner.timer.set_duration(Duration::from_secs_f32(2.0));
+    }
+}
+
 
 fn update_score(
     score: Res<Score>,
@@ -129,9 +167,9 @@ fn spawn_asteriods(
     player_query: Query<&Transform, With<PlayerID>>,
     window_query: Query<&Window, With<PrimaryWindow>>
 ){
-    asteriod_spawner.0.tick(time.delta());
+    asteriod_spawner.timer.tick(time.delta());
 
-    if asteriod_spawner.0.finished(){
+    if asteriod_spawner.timer.finished(){
         // spawn asteriod on the edges of the visible screen
         let dim = &window_query.single().resolution;
         let player_pos = player_query.single().translation;
