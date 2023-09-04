@@ -16,7 +16,7 @@ struct Velocity(Vec2);
 struct Health(f32);
 
 #[derive(Component)]
-struct Timeout(f32);
+struct Lifetime(f32);
 
 #[derive(Component)]
 struct PlayerID(u32);
@@ -173,7 +173,7 @@ fn spawn_asteriods(
                 },
                 ..default()
             }).insert(Velocity(Vec2::new(0., 100.)))
-            .insert(Timeout(20.0))
+            .insert(Lifetime(20.0))
             .insert(Health(50.0))
             .insert(Asteriod);
     }
@@ -223,7 +223,7 @@ fn fire_bullet(
             })
             .insert(Velocity(Vec2 { x: 0., y: 1000. }))
             .insert(Bullet)
-            .insert(Timeout(0.5));
+            .insert(Lifetime(0.5));
     }
 }
 
@@ -251,7 +251,7 @@ fn move_player(
 fn update_timeout(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut Timeout)>,
+    mut query: Query<(Entity, &mut Lifetime)>,
 ) {
     for (e, mut timeout) in &mut query {
         timeout.0 -= time.delta_seconds();
