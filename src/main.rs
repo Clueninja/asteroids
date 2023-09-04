@@ -271,3 +271,4 @@ fn update_transforms(
         transform.translation += vec * time.delta_seconds();
     }
 }
+
