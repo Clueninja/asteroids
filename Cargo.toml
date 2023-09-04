@@ -24,5 +24,5 @@ resolver = "2" # Important! wgpu/Bevy needs this!
 
 
 [dependencies]
-bevy = { version = "0.11.2", features = ["dynamic_linking"] }
+bevy = { version = "0.11.2" }
 rand = "0.8.5"
