@@ -1,4 +1,4 @@
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 use rand::seq::SliceRandom;
@@ -40,7 +40,7 @@ struct SafeZone;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, (setup_window, setup))
+        .add_systems(Startup, (set_crosshair, setup))
         .add_systems(
             Update,
             (
@@ -58,12 +58,6 @@ fn main() {
         .run()
 }
 
-fn setup_window(
-    mut win: Query<&mut Window, With<PrimaryWindow>>,
-){
-    win.single_mut().title = String::from("Asteriods");
-    win.single_mut().cursor.icon = CursorIcon::Crosshair;
-}
 
 // Spawn all Normal Entities on Startup
 fn setup(
@@ -78,7 +72,7 @@ fn setup(
     commands.spawn(
         MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(2000.).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
+            material: materials.add(ColorMaterial::from(Color::GRAY)),
             transform: Transform::from_xyz(0.0, 0.0, -20.0),
             ..default()
         }).insert(SafeZone);
@@ -104,6 +98,11 @@ fn setup(
         commands.insert_resource(Score(0));
 }
 
+fn set_crosshair(
+    mut window: Query<&mut Window, With<PrimaryWindow>>
+){
+    window.single_mut().cursor.icon = CursorIcon::Crosshair;
+}
 
 fn move_camera_with_player(
     mut camera: Query<&mut Transform, (With<Camera2d>, Without<PlayerID>)>,
@@ -117,7 +116,7 @@ fn check_player_in_safezone(
     safezone_query: Query<&Transform, (With<SafeZone>, Without<PlayerID>)>,
     mut asteriod_spawner: ResMut<AsteriodSpawner>
 ){
-    let (player_transform, mut player_health ) = player_query.single_mut();
+    let (player_transform, _player_health ) = player_query.single_mut();
     if player_transform.translation.distance(safezone_query.single().translation) > 2000.0{
         asteriod_spawner.current_duration = 0.5;
         asteriod_spawner.timer.set_duration(Duration::from_secs_f32(0.5));
