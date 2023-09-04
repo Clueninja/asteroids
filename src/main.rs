@@ -98,6 +98,7 @@ fn update_score(
     scoreboard_query.single_mut().sections[1].value = score.0.to_string();
 }
 
+// Fix bug
 fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
