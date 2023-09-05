@@ -24,6 +24,9 @@ pub struct PlayerID(u32);
 #[derive(Component)]
 pub struct Bullet;
 
+#[derive(Component)]
+pub struct Missile;
+
 
 #[derive(Resource)]
 pub struct PlayerWeaponry{
@@ -158,7 +161,8 @@ fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
     mut asset_server: ResMut<AssetServer>,
-    bullet_query: Query<(Entity, &Transform, &DamageAsteriods), Without<Asteriod>>,
+    missile_query: Query<(Entity, &Transform, &DamageAsteriods), (With<Missile>, Without<Asteriod>)>,
+    bullet_query: Query<(Entity, &Transform, &DamageAsteriods), (Without<Missile>, Without<Asteriod>)>,
     mut asteriod_query: Query<(Entity, &Transform, &mut Health, &mut Sprite), With<Asteriod>>
 ){
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
@@ -174,6 +178,25 @@ fn handle_asteriod_bullet_collision(
                     commands.entity(asteriod).despawn();
                 }
                 commands.entity(bullet).despawn();
+            }
+        }
+        for (missile, missile_transform, damage) in &missile_query{
+            if missile_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
+                if asteriod_health.0 < 2.0 * damage.damage{
+                    commands.entity(asteriod).despawn();
+                }
+                else{
+                    asteriod_health.0-= damage.damage;
+                    asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
+
+                    commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
+
+                    if asteriod_health.0<=0.0{
+                        score.0+=1;
+                        commands.entity(asteriod).despawn();
+                    }
+                }
+                commands.entity(missile).despawn();
             }
         }
     }
@@ -243,7 +266,8 @@ fn fire_weaponry(
                 ..default()
             }).insert(Velocity(Vec2{x: 0.0, y: 500.0}))
             .insert(DamageAsteriods{damage: 100.0})
-            .insert(Lifetime(4.0));
+            .insert(Lifetime(4.0))
+            .insert(Missile);
             player_weaponry.missile_timer.reset();
         }
         else{
