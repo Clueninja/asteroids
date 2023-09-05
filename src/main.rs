@@ -1,43 +1,44 @@
 pub mod asteriods;
 
-use asteriods::{AsteriodBundle, ParticleBundle, fadeout_sprites};
-use bevy::window::{PrimaryWindow};
+use asteriods::{Asteriod, AsteriodSpawner, ParticleBundle, fadeout_sprites, spawn_asteriods};
+use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use rand::Rng;
-use rand::seq::SliceRandom;
 use bevy::utils::Duration;
 
 
 #[derive(Resource)]
 struct Score(u32);
+    
+#[derive(Component)]
+pub struct Velocity(Vec2);
+
+#[derive(Component)]
+pub struct Health(f32);
+
+#[derive(Component)]
+pub struct Lifetime(f32);
+
+#[derive(Component)]
+pub struct PlayerID(u32);
+
+#[derive(Component)]
+pub struct Bullet;
+
 
 #[derive(Resource)]
-struct AsteriodSpawner{
-    timer: Timer,
-    current_duration: f32
+pub struct PlayerWeaponry{
+    pub missile_timer: Timer,
+    pub gun_timer: Timer,
 }
-    
 
 #[derive(Component)]
-struct Velocity(Vec2);
+pub struct DamageAsteriods{
+    pub damage: f32
+}
+
 
 #[derive(Component)]
-struct Health(f32);
-
-#[derive(Component)]
-struct Lifetime(f32);
-
-#[derive(Component)]
-struct PlayerID(u32);
-
-#[derive(Component)]
-struct Bullet;
-
-#[derive(Component)]
-struct Asteriod;
-
-#[derive(Component)]
-struct SafeZone;
+pub struct SafeZone;
 
 
 
@@ -51,7 +52,7 @@ fn main() {
                 update_transforms,
                 cursor_position,
                 move_player,
-                fire_bullet,
+                fire_weaponry,
                 update_timeout,
                 move_camera_with_player,
                 spawn_asteriods,
@@ -106,6 +107,12 @@ fn setup(
 
 
         commands.insert_resource(AsteriodSpawner{timer: Timer::from_seconds(2.0, TimerMode::Repeating), current_duration: 2.0});
+        commands.insert_resource(
+            PlayerWeaponry{
+                missile_timer: Timer::from_seconds(2.0, TimerMode::Once),
+                gun_timer: Timer::from_seconds(0.1, TimerMode::Once),
+            }
+        );
         commands.insert_resource(Score(0));
 }
 
@@ -151,13 +158,13 @@ fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
     mut asset_server: ResMut<AssetServer>,
-    bullet_query: Query<(Entity, &Transform), (With<Bullet>, Without<Asteriod>)>,
-    mut asteriod_query: Query<(Entity, &Transform, &mut Health, &mut Sprite), (With<Asteriod>, Without<Bullet>)>
+    bullet_query: Query<(Entity, &Transform, &DamageAsteriods), Without<Asteriod>>,
+    mut asteriod_query: Query<(Entity, &Transform, &mut Health, &mut Sprite), With<Asteriod>>
 ){
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
-        for (bullet, bullet_transform) in &bullet_query{
+        for (bullet, bullet_transform, damage) in &bullet_query{
             if bullet_transform.translation.distance(asteriod_transform.translation) < 50.0{
-                asteriod_health.0-= 10.0;
+                asteriod_health.0-= damage.damage;
                 asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
 
                 commands.spawn(ParticleBundle::new(&mut asset_server, bullet_transform.translation.clone()));
@@ -169,52 +176,6 @@ fn handle_asteriod_bullet_collision(
                 commands.entity(bullet).despawn();
             }
         }
-    }
-}
-
-
-fn spawn_asteriods(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut asteriod_spawner: ResMut<AsteriodSpawner>,
-    asset_server: ResMut<AssetServer>,
-    player_query: Query<&Transform, With<PlayerID>>,
-    window_query: Query<&Window, With<PrimaryWindow>>
-){
-    asteriod_spawner.timer.tick(time.delta());
-
-    if asteriod_spawner.timer.finished(){
-        // spawn asteriod on the edges of the visible screen
-        let dim = &window_query.single().resolution;
-        let player_pos = player_query.single().translation;
-        // find all possible spawn areas
-        let spawn_areas = vec![
-            (
-                player_pos.x-dim.width()/2.0 -50.0 ..  player_pos.x-dim.width()/2.0 -20.0,
-                player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
-            ),
-            (
-                player_pos.x+dim.width()/2.0 +20.0 ..  player_pos.x+dim.width()/2.0 + 50.0, 
-                player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
-            ),
-            (
-                player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
-                player_pos.y+dim.height()/2.0 +20.0 ..  player_pos.y+dim.height()/2.0 + 50.0
-            ),
-            (
-                player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
-                player_pos.y-dim.height()/2.0 -50.0 ..  player_pos.y-dim.height()/2.0 -20.0
-            )];
-        // Pick one area for the asteriod to spawn
-        let (x, y) = spawn_areas.choose(&mut rand::thread_rng()).unwrap();
-        // set the translation of the asteriod
-        let translation = Vec3::new(
-            rand::thread_rng().gen_range(x.clone()),
-            rand::thread_rng().gen_range(y.clone()),
-            0.0
-        );
-        // Spawn the new asteriod with the correct rotation to move towards the player
-        commands.spawn(AsteriodBundle::new(asset_server, translation));
     }
 }
 
@@ -245,24 +206,54 @@ fn cursor_position(
 }
 
 // If spacebar is pressed, spawn a new Entity, with Bullet, and timeout components with a circle sprite
-fn fire_bullet(
+fn fire_weaponry(
     mut commands: Commands,
     input: Res<Input<MouseButton>>,
+    time: Res<Time>,
+    mut player_weaponry: ResMut<PlayerWeaponry>,
     query: Query<&Transform, With<PlayerID>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    if input.just_pressed(MouseButton::Left) {
-        commands
-            .spawn(MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(5.).into()).into(),
-                material: materials.add(ColorMaterial::from(Color::DARK_GRAY)),
+    player_weaponry.missile_timer.tick(time.delta());
+    player_weaponry.gun_timer.tick(time.delta());
+
+    if input.pressed(MouseButton::Left) {
+        if player_weaponry.gun_timer.finished(){
+            commands
+                .spawn(MaterialMesh2dBundle {
+                    mesh: meshes.add(shape::Circle::new(5.).into()).into(),
+                    material: materials.add(ColorMaterial::from(Color::DARK_GRAY)),
+                    transform: query.single().clone(),
+                    ..default()
+                })
+                .insert(Velocity(Vec2 { x: 0., y: 1000. }))
+                .insert(DamageAsteriods{damage: 20.0})
+                .insert(Lifetime(1.0));
+            player_weaponry.gun_timer.reset();
+        }
+    }
+    if input.just_pressed(MouseButton::Middle){
+        if player_weaponry.missile_timer.finished(){
+            commands.spawn(MaterialMesh2dBundle {
+                mesh: meshes.add(shape::Circle::new(10.).into()).into(),
+                material: materials.add(ColorMaterial::from(Color::BLUE)),
                 transform: query.single().clone(),
                 ..default()
-            })
-            .insert(Velocity(Vec2 { x: 0., y: 1000. }))
-            .insert(Bullet)
+            }).insert(Velocity(Vec2{x: 0.0, y: 500.0}))
+            .insert(DamageAsteriods{damage: 100.0})
+            .insert(Lifetime(4.0));
+            player_weaponry.missile_timer.reset();
+        }
+        else{
+            commands.spawn(MaterialMesh2dBundle {
+                mesh: meshes.add(shape::Circle::new(5.).into()).into(),
+                material: materials.add(ColorMaterial::from(Color::RED)),
+                transform: query.single().clone(),
+                ..default()
+            }).insert(Velocity(Vec2{x: 0.0, y: 500.0}))
             .insert(Lifetime(0.5));
+        }
     }
 }
 
