@@ -110,7 +110,7 @@ fn setup(
         commands.insert_resource(
             PlayerWeaponry{
                 missile_timer: Timer::from_seconds(2.0, TimerMode::Once),
-                gun_timer: Timer::from_seconds(0.1, TimerMode::Once),
+                gun_timer: Timer::from_seconds(0.2, TimerMode::Once),
             }
         );
         commands.insert_resource(Score(0));
@@ -163,7 +163,7 @@ fn handle_asteriod_bullet_collision(
 ){
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
         for (bullet, bullet_transform, damage) in &bullet_query{
-            if bullet_transform.translation.distance(asteriod_transform.translation) < 50.0{
+            if bullet_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
                 asteriod_health.0-= damage.damage;
                 asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
 
@@ -208,7 +208,8 @@ fn cursor_position(
 // If spacebar is pressed, spawn a new Entity, with Bullet, and timeout components with a circle sprite
 fn fire_weaponry(
     mut commands: Commands,
-    input: Res<Input<MouseButton>>,
+    mouse_button_input: Res<Input<MouseButton>>,
+    keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut player_weaponry: ResMut<PlayerWeaponry>,
     query: Query<&Transform, With<PlayerID>>,
@@ -218,7 +219,7 @@ fn fire_weaponry(
     player_weaponry.missile_timer.tick(time.delta());
     player_weaponry.gun_timer.tick(time.delta());
 
-    if input.pressed(MouseButton::Left) {
+    if mouse_button_input.pressed(MouseButton::Left) {
         if player_weaponry.gun_timer.finished(){
             commands
                 .spawn(MaterialMesh2dBundle {
@@ -233,7 +234,7 @@ fn fire_weaponry(
             player_weaponry.gun_timer.reset();
         }
     }
-    if input.just_pressed(MouseButton::Middle){
+    if keyboard_input.just_pressed(KeyCode::Space){
         if player_weaponry.missile_timer.finished(){
             commands.spawn(MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(10.).into()).into(),
@@ -252,7 +253,7 @@ fn fire_weaponry(
                 transform: query.single().clone(),
                 ..default()
             }).insert(Velocity(Vec2{x: 0.0, y: 500.0}))
-            .insert(Lifetime(0.5));
+            .insert(Lifetime(0.2));
         }
     }
 }
