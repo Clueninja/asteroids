@@ -1,8 +1,12 @@
+pub mod asteriods;
+
+use asteriods::{AsteriodBundle, ParticleBundle, fadeout_sprites};
 use bevy::window::{PrimaryWindow};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 use rand::seq::SliceRandom;
 use bevy::utils::Duration;
+
 
 #[derive(Resource)]
 struct Score(u32);
@@ -53,7 +57,8 @@ fn main() {
                 spawn_asteriods,
                 handle_asteriod_bullet_collision,
                 update_score,
-                check_player_in_safezone
+                check_player_in_safezone,
+                fadeout_sprites
             ))
         .run()
 }
@@ -87,13 +92,18 @@ fn setup(
             ..default()
         }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.)));
 
+
+        commands.spawn(
+            Text2dBundle{
+                text: Text { 
+                    sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], 
+                    ..default()
+                },
+                ..default()
+        });
+
         commands.spawn(Camera2dBundle::default());
 
-        commands.spawn(Text2dBundle{
-                text: Text { 
-                    sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], ..default()},
-                ..default()
-            });
 
         commands.insert_resource(AsteriodSpawner{timer: Timer::from_seconds(2.0, TimerMode::Repeating), current_duration: 2.0});
         commands.insert_resource(Score(0));
@@ -140,13 +150,18 @@ fn update_score(
 fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
+    mut asset_server: ResMut<AssetServer>,
     bullet_query: Query<(Entity, &Transform), (With<Bullet>, Without<Asteriod>)>,
-    mut asteriod_query: Query<(Entity, &Transform, &mut Health), (With<Asteriod>, Without<Bullet>)>
+    mut asteriod_query: Query<(Entity, &Transform, &mut Health, &mut Sprite), (With<Asteriod>, Without<Bullet>)>
 ){
-    for(asteriod, asteriod_transform,mut asteriod_health) in &mut asteriod_query{
+    for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
         for (bullet, bullet_transform) in &bullet_query{
             if bullet_transform.translation.distance(asteriod_transform.translation) < 50.0{
                 asteriod_health.0-= 10.0;
+                asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
+
+                commands.spawn(ParticleBundle::new(&mut asset_server, bullet_transform.translation.clone()));
+
                 if asteriod_health.0<=0.0{
                     score.0+=1;
                     commands.entity(asteriod).despawn();
@@ -162,8 +177,7 @@ fn spawn_asteriods(
     mut commands: Commands,
     time: Res<Time>,
     mut asteriod_spawner: ResMut<AsteriodSpawner>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: ResMut<AssetServer>,
     player_query: Query<&Transform, With<PlayerID>>,
     window_query: Query<&Window, With<PrimaryWindow>>
 ){
@@ -200,20 +214,7 @@ fn spawn_asteriods(
             0.0
         );
         // Spawn the new asteriod with the correct rotation to move towards the player
-        commands.spawn(
-            MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(50.).into()).into(),
-                material: materials.add(ColorMaterial::from(Color::PURPLE)),
-                transform: Transform{
-                    translation,
-                    rotation: Quat::from_rotation_arc(Vec3::Y, (player_pos-translation).normalize()),
-                    ..default()
-                },
-                ..default()
-            }).insert(Velocity(Vec2::new(0., 100.)))
-            .insert(Lifetime(20.0))
-            .insert(Health(50.0))
-            .insert(Asteriod);
+        commands.spawn(AsteriodBundle::new(asset_server, translation));
     }
 }
 
