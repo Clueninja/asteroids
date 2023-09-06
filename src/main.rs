@@ -3,7 +3,7 @@ pub mod asteriods;
 use asteriods::{Asteriod, AsteriodSpawner, ParticleBundle, fadeout_sprites, spawn_asteriods, shrink_asteriod};
 use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy::utils::{Duration, HashMap};
+use bevy::utils::Duration;
 use bevy::math::Vec3Swizzles;
 
 #[derive(Resource)]
