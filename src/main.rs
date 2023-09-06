@@ -19,7 +19,7 @@ pub struct Health(f32);
 pub struct Lifetime(f32);
 
 #[derive(Component)]
-pub struct PlayerID(u32);
+pub struct Player;
 
 #[derive(Component)]
 pub struct Bullet;
@@ -94,7 +94,7 @@ fn setup(
             },
             texture: asset_server.load("spaceship.png"),
             ..default()
-        }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.)));
+        }).insert((Velocity(Vec2 { x: 0., y: 0. }), Player, Health(100.)));
 
 
         commands.spawn(
@@ -126,15 +126,15 @@ fn set_crosshair(
 }
 
 fn move_camera_with_player(
-    mut camera: Query<&mut Transform, (With<Camera2d>, Without<PlayerID>)>,
-    player: Query<& Transform, (With<PlayerID>, Without<Camera2d>)>
+    mut camera: Query<&mut Transform, (With<Camera2d>, Without<Player>)>,
+    player: Query<& Transform, (With<Player>, Without<Camera2d>)>
 ){
     camera.single_mut().translation = player.single().translation;
 }
 
 fn check_player_in_safezone(
-    mut player_query: Query<(&Transform, &mut Health), (With<PlayerID>, Without<SafeZone>)>,
-    safezone_query: Query<&Transform, (With<SafeZone>, Without<PlayerID>)>,
+    mut player_query: Query<(&Transform, &mut Health), (With<Player>, Without<SafeZone>)>,
+    safezone_query: Query<&Transform, (With<SafeZone>, Without<Player>)>,
     mut asteriod_spawner: ResMut<AsteriodSpawner>
 ){
     let (player_transform, _player_health ) = player_query.single_mut();
@@ -213,7 +213,7 @@ fn handle_asteriod_bullet_collision(
 // Contains multiple bugs I'm sure
 fn cursor_position(
     q_windows: Query<&Window, With<PrimaryWindow>>,
-    mut player_query: Query<&mut Transform, With<PlayerID>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
 ) {
     let mut player_transform = player_query.single_mut();
     // get the player translation in 2D
@@ -240,7 +240,7 @@ fn fire_weaponry(
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut player_weaponry: ResMut<PlayerWeaponry>,
-    query: Query<&Transform, With<PlayerID>>,
+    query: Query<&Transform, With<Player>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
@@ -290,7 +290,7 @@ fn fire_weaponry(
 // increase and decrease player speed
 fn move_player(
     input: Res<Input<KeyCode>>, 
-    mut query: Query<&mut Velocity, With<PlayerID>>
+    mut query: Query<&mut Velocity, With<Player>>
 ) {
     if input.pressed(KeyCode::W) {
         if query.single().0.y < 200.{

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::{Health, Lifetime, Velocity, PlayerID};
+use crate::{Health, Lifetime, Velocity, Player};
 
 
 
@@ -60,7 +60,7 @@ pub fn spawn_asteriods(
     time: Res<Time>,
     mut asteriod_spawner: ResMut<AsteriodSpawner>,
     asset_server: ResMut<AssetServer>,
-    player_query: Query<&Transform, With<PlayerID>>,
+    player_query: Query<&Transform, With<Player>>,
     window_query: Query<&Window, With<PrimaryWindow>>
 ){
     asteriod_spawner.timer.tick(time.delta());
