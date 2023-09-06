@@ -3,8 +3,8 @@ pub mod asteriods;
 use asteriods::{Asteriod, AsteriodSpawner, ParticleBundle, fadeout_sprites, spawn_asteriods, shrink_asteriod};
 use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy::utils::Duration;
-
+use bevy::utils::{Duration, HashMap};
+use bevy::math::Vec3Swizzles;
 
 #[derive(Resource)]
 pub struct Score(u32);
@@ -156,6 +156,20 @@ fn check_player_in_safezone(
     }
 }
 
+fn handle_asteriod_collision(
+    mut asteriod_query: Query<(Entity, &mut Transform, &mut Sprite, &mut Velocity), With<Asteriod>>,
+){
+    let mut iter = asteriod_query.iter_combinations_mut();
+    while let Some([mut a, mut b]) = iter.fetch_next(){
+        let mut a_2d = a.1.translation.xy();
+        let mut b_2d = b.1.translation.xy();
+        if a_2d.distance(b_2d) < a.2.custom_size.unwrap().x/2.0 + b.2.custom_size.unwrap().x/2.0{
+            
+        }
+    }
+
+}
+
 
 fn update_score(
     mut score: ResMut<Score>,
@@ -164,7 +178,7 @@ fn update_score(
     asteriod_query: Query<(&Transform, &Sprite), (With<Asteriod>, Without<Player>)> 
 ){
     scoreboard_query.single_mut().sections[1].value = score.0.to_string();
-    
+
     let (player_transform, player_sprite) = player_query.single();
     for (asteriod_transform, asteriod_sprite) in &asteriod_query{
         // if colliding set score to 0
@@ -188,38 +202,33 @@ fn handle_asteriod_bullet_collision(
             if bullet_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
                 // shrink asteriod when taking damage
                 asteriod_health.0-= damage.damage;
-                shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
-
+                
                 commands.spawn(ParticleBundle::new(&mut asset_server, bullet_transform.translation.clone()));
-
-                if asteriod_health.0<=0.0{
-                    score.0+=1;
-                    commands.entity(asteriod).despawn();
-                }
                 commands.entity(bullet).despawn();
             }
         }
         for (missile, missile_transform, damage) in &missile_query{
             if missile_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
                 if asteriod_health.0 < 2.0 * damage.damage{
-                    commands.entity(asteriod).despawn();
+                    score.0+=1;
+                    asteriod_health.0 -= 2.0 * damage.damage;
                     for _i in 0..10{
                         commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
                     }
                 }
                 else{
                     asteriod_health.0-= damage.damage;
-                    shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
-
                     commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
-
-                    if asteriod_health.0<=0.0{
-                        score.0+=1;
-                        commands.entity(asteriod).despawn();
-                    }
                 }
                 commands.entity(missile).despawn();
             }
+        }
+        if asteriod_health.0<=0.0{
+            score.0+=1;
+            commands.entity(asteriod).despawn();
+        }
+        else{
+            shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
         }
     }
 }

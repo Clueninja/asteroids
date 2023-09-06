@@ -4,7 +4,7 @@ use bevy::window::PrimaryWindow;
 use crate::{Health, Lifetime, Velocity, Player, Score};
 
 // lower the more difficult
-static ASTERIOD_DIFFICUTY:f32 = 10.0;
+static ASTERIOD_DIFFICUTY:f32 = 20.0;
 
 #[derive(Resource)]
 pub struct AsteriodSpawner{
@@ -34,11 +34,11 @@ pub struct AsteriodBundle {
 
 impl AsteriodBundle {
     pub fn new(score: Res<Score>, asset_server: ResMut<AssetServer>, position: Vec3, velocity: Vec2) -> Self {
-        // ASTEROID_DIFFICULTY = 10.0
+        // ASTEROID_DIFFICULTY = 20.0
         // Score |  Min Health  |  Max Health
         //   0   |     50       |     250
-        //  10   |    100       |     350
-        //  20   |    150       |     450
+        //  10   |     75       |     325
+        //  20   |    100       |     400
 
         let health = thread_rng().gen::<f32>()*100.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 2.0) + 50.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 1.0);
 
