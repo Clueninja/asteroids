@@ -156,7 +156,7 @@ fn update_score(
     scoreboard_query.single_mut().sections[1].value = score.0.to_string();
 }
 
-// Fix bug
+// Fix bugs
 fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -184,6 +184,9 @@ fn handle_asteriod_bullet_collision(
             if missile_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
                 if asteriod_health.0 < 2.0 * damage.damage{
                     commands.entity(asteriod).despawn();
+                    for _i in 0..10{
+                        commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
+                    }
                 }
                 else{
                     asteriod_health.0-= damage.damage;
@@ -201,6 +204,8 @@ fn handle_asteriod_bullet_collision(
         }
     }
 }
+
+
 
 
 // Converts the Cursor position to screen coordinates, then rotates the player to the Cursor
