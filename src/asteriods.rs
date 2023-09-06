@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::{Health, Lifetime, Velocity, Player};
+use crate::{Health, Lifetime, Velocity, Player, Score};
 
 
 
@@ -32,8 +32,10 @@ pub struct AsteriodBundle {
 }
 
 impl AsteriodBundle {
-    pub fn new(asset_server: ResMut<AssetServer>, position: Vec3, velocity: Vec2) -> Self {
-        let health = thread_rng().gen::<f32>()*300.0 + 50.0;
+    pub fn new(score: Res<Score>, asset_server: ResMut<AssetServer>, position: Vec3, velocity: Vec2) -> Self {
+
+        let health = thread_rng().gen::<f32>()*100.0 * ((score.0 as f32)/10.0 + 2.0) + 50.0;
+
         Self {
             _asteriod: Asteriod,
             health: Health(health),
@@ -42,7 +44,7 @@ impl AsteriodBundle {
             lifetime: Lifetime(20.0),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
-                    custom_size: Some(Vec2::new(health, health)),
+                    custom_size: Some(Vec2::new(health+20.0, health+20.0)),
                     ..default()
                 },
                 texture: asset_server.load("asteriod.png"),
@@ -54,10 +56,18 @@ impl AsteriodBundle {
 }
 
 
+pub fn shrink_asteriod(
+    health: &Health,
+    sprite: &mut Sprite,
+){
+    sprite.custom_size = Some(Vec2 { x: health.0 + 20.0, y: health.0 + 20.0 });
+}
+
 
 pub fn spawn_asteriods(
     mut commands: Commands,
     time: Res<Time>,
+    score: Res<Score>,
     mut asteriod_spawner: ResMut<AsteriodSpawner>,
     asset_server: ResMut<AssetServer>,
     player_query: Query<&Transform, With<Player>>,
@@ -72,20 +82,20 @@ pub fn spawn_asteriods(
         // find all possible spawn areas
         let spawn_areas = vec![
             (
-                player_pos.x-dim.width()/2.0 -50.0 ..  player_pos.x-dim.width()/2.0 -20.0,
+                player_pos.x-dim.width()/2.0 -200.0 ..  player_pos.x-dim.width()/2.0 -100.0,
                 player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
             ),
             (
-                player_pos.x+dim.width()/2.0 +20.0 ..  player_pos.x+dim.width()/2.0 + 50.0, 
+                player_pos.x+dim.width()/2.0 +100.0 ..  player_pos.x+dim.width()/2.0 + 200.0, 
                 player_pos.y-dim.height()/2.0 .. player_pos.y+dim.height()/2.0
             ),
             (
                 player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
-                player_pos.y+dim.height()/2.0 +20.0 ..  player_pos.y+dim.height()/2.0 + 50.0
+                player_pos.y+dim.height()/2.0 +100.0 ..  player_pos.y+dim.height()/2.0 + 200.0
             ),
             (
                 player_pos.x-dim.width()/2.0 .. player_pos.x+dim.width()/2.0,
-                player_pos.y-dim.height()/2.0 -50.0 ..  player_pos.y-dim.height()/2.0 -20.0
+                player_pos.y-dim.height()/2.0 -200.0 ..  player_pos.y-dim.height()/2.0 -100.0
             )];
         // Pick one area for the asteriod to spawn
         let (x, y) = spawn_areas.choose(&mut rand::thread_rng()).unwrap();
@@ -96,9 +106,9 @@ pub fn spawn_asteriods(
             0.0
         );
         let vel = player_pos-translation;
-        let velocity = Vec2::new(vel.x, vel.y).normalize()*50.0;
+        let velocity = Vec2::new(vel.x, vel.y).normalize() * 50.0 * ((score.0 as f32)/10.0 + 1.0);
         // Spawn the new asteriod with the correct rotation to move towards the player
-        commands.spawn(AsteriodBundle::new(asset_server, translation, velocity));
+        commands.spawn(AsteriodBundle::new(score, asset_server, translation, velocity));
     }
 }
 

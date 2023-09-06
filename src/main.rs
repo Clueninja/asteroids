@@ -1,13 +1,18 @@
 pub mod asteriods;
 
-use asteriods::{Asteriod, AsteriodSpawner, ParticleBundle, fadeout_sprites, spawn_asteriods};
+use asteriods::{Asteriod, AsteriodSpawner, ParticleBundle, fadeout_sprites, spawn_asteriods, shrink_asteriod};
 use bevy::window::PrimaryWindow;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy::utils::Duration;
 
 
 #[derive(Resource)]
-struct Score(u32);
+pub struct Score(u32);
+
+
+#[derive(Component)]
+pub struct Scoreboard;
+
     
 #[derive(Component)]
 pub struct Velocity(Vec2);
@@ -104,7 +109,7 @@ fn setup(
                     ..default()
                 },
                 ..default()
-        });
+        }).insert(Scoreboard);
 
         commands.spawn(Camera2dBundle::default());
 
@@ -150,10 +155,19 @@ fn check_player_in_safezone(
 
 
 fn update_score(
-    score: Res<Score>,
-    mut scoreboard_query: Query<&mut Text>
+    mut score: ResMut<Score>,
+    mut scoreboard_query: Query<&mut Text, With<Scoreboard>>,
+    player_query: Query<(&Transform, &Sprite), (With<Player>, Without<Asteriod>)>,
+    asteriod_query: Query<(&Transform, &Sprite), (With<Asteriod>, Without<Player>)> 
 ){
     scoreboard_query.single_mut().sections[1].value = score.0.to_string();
+    let (player_transform, player_sprite) = player_query.single();
+    for (asteriod_transform, asteriod_sprite) in &asteriod_query{
+        // if colliding set score to 0
+        if player_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + player_sprite.custom_size.unwrap().x/2.0){
+            score.0 = 0;
+        }
+    }
 }
 
 // Fix bugs
@@ -168,8 +182,9 @@ fn handle_asteriod_bullet_collision(
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
         for (bullet, bullet_transform, damage) in &bullet_query{
             if bullet_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
+                // shrink asteriod when taking damage
                 asteriod_health.0-= damage.damage;
-                asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
+                shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
 
                 commands.spawn(ParticleBundle::new(&mut asset_server, bullet_transform.translation.clone()));
 
@@ -190,7 +205,7 @@ fn handle_asteriod_bullet_collision(
                 }
                 else{
                     asteriod_health.0-= damage.damage;
-                    asteriod_sprite.custom_size = Some(Vec2 { x: asteriod_health.0, y: asteriod_health.0 });
+                    shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
 
                     commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
 
