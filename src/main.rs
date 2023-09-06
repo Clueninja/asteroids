@@ -92,7 +92,7 @@ fn setup(
                 custom_size: Some(Vec2::new(48., 48.)),
                 ..default()
             },
-            texture: asset_server.load("spaceship-fotor-bg-remover-20230906141855.png"),
+            texture: asset_server.load("spaceship.png"),
             ..default()
         }).insert((Velocity(Vec2 { x: 0., y: 0. }), PlayerID(0), Health(100.)));
 
