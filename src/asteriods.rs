@@ -3,7 +3,8 @@ use rand::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::{Health, Lifetime, Velocity, Player, Score};
 
-
+// lower the more difficult
+static ASTERIOD_DIFFICUTY:f32 = 10.0;
 
 #[derive(Resource)]
 pub struct AsteriodSpawner{
@@ -33,8 +34,13 @@ pub struct AsteriodBundle {
 
 impl AsteriodBundle {
     pub fn new(score: Res<Score>, asset_server: ResMut<AssetServer>, position: Vec3, velocity: Vec2) -> Self {
+        // ASTEROID_DIFFICULTY = 10.0
+        // Score |  Min Health  |  Max Health
+        //   0   |     50       |     250
+        //  10   |    100       |     350
+        //  20   |    150       |     450
 
-        let health = thread_rng().gen::<f32>()*100.0 * ((score.0 as f32)/10.0 + 2.0) + 50.0;
+        let health = thread_rng().gen::<f32>()*100.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 2.0) + 50.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 1.0);
 
         Self {
             _asteriod: Asteriod,
@@ -44,6 +50,7 @@ impl AsteriodBundle {
             lifetime: Lifetime(20.0),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
+                    // increase size a little so it is never a single pixel
                     custom_size: Some(Vec2::new(health+20.0, health+20.0)),
                     ..default()
                 },
@@ -106,7 +113,7 @@ pub fn spawn_asteriods(
             0.0
         );
         let vel = player_pos-translation;
-        let velocity = Vec2::new(vel.x, vel.y).normalize() * 50.0 * ((score.0 as f32)/10.0 + 1.0);
+        let velocity = Vec2::new(vel.x, vel.y).normalize() * 50.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 1.0);
         // Spawn the new asteriod with the correct rotation to move towards the player
         commands.spawn(AsteriodBundle::new(score, asset_server, translation, velocity));
     }

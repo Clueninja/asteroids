@@ -49,6 +49,9 @@ pub struct DamageAsteriods{
 pub struct SafeZone;
 
 
+static SAFEZONE_SIZE:f32 = 2000.0;
+
+
 
 fn main() {
     App::new()
@@ -85,7 +88,7 @@ fn setup(
 
     commands.spawn(
         MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(2000.).into()).into(),
+            mesh: meshes.add(shape::Circle::new(SAFEZONE_SIZE).into()).into(),
             material: materials.add(ColorMaterial::from(Color::GRAY)),
             transform: Transform::from_xyz(0.0, 0.0, -20.0),
             ..default()
@@ -143,7 +146,7 @@ fn check_player_in_safezone(
     mut asteriod_spawner: ResMut<AsteriodSpawner>
 ){
     let (player_transform, _player_health ) = player_query.single_mut();
-    if player_transform.translation.distance(safezone_query.single().translation) > 2000.0{
+    if player_transform.translation.distance(safezone_query.single().translation) > SAFEZONE_SIZE{
         asteriod_spawner.current_duration = 0.5;
         asteriod_spawner.timer.set_duration(Duration::from_secs_f32(0.5));
     }
@@ -161,6 +164,7 @@ fn update_score(
     asteriod_query: Query<(&Transform, &Sprite), (With<Asteriod>, Without<Player>)> 
 ){
     scoreboard_query.single_mut().sections[1].value = score.0.to_string();
+    
     let (player_transform, player_sprite) = player_query.single();
     for (asteriod_transform, asteriod_sprite) in &asteriod_query{
         // if colliding set score to 0
@@ -181,7 +185,7 @@ fn handle_asteriod_bullet_collision(
 ){
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
         for (bullet, bullet_transform, damage) in &bullet_query{
-            if bullet_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
+            if bullet_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
                 // shrink asteriod when taking damage
                 asteriod_health.0-= damage.damage;
                 shrink_asteriod(&asteriod_health, &mut asteriod_sprite);
@@ -196,7 +200,7 @@ fn handle_asteriod_bullet_collision(
             }
         }
         for (missile, missile_transform, damage) in &missile_query{
-            if missile_transform.translation.distance(asteriod_transform.translation) < asteriod_health.0/2.0 + 10.0{
+            if missile_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
                 if asteriod_health.0 < 2.0 * damage.damage{
                     commands.entity(asteriod).despawn();
                     for _i in 0..10{
