@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::prelude::*;
 use bevy::window::PrimaryWindow;
-use crate::{Health, Lifetime, Velocity, Player, Score};
+use crate::{Health, Lifetime, Velocity, Player, Score, ASTERIOD_Z_OFFSET};
 
 // lower the more difficult
 static ASTERIOD_DIFFICUTY:f32 = 20.0;
@@ -110,7 +110,7 @@ pub fn spawn_asteriods(
         let translation = Vec3::new(
             rand::thread_rng().gen_range(x.clone()),
             rand::thread_rng().gen_range(y.clone()),
-            0.0
+            ASTERIOD_Z_OFFSET
         );
         let vel = player_pos-translation;
         let velocity = Vec2::new(vel.x, vel.y).normalize() * 50.0 * ((score.0 as f32)/ASTERIOD_DIFFICUTY + 1.0);

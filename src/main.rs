@@ -13,6 +13,11 @@ pub struct Score(u32);
 #[derive(Component)]
 pub struct Scoreboard;
 
+
+#[derive(Component)]
+pub struct Background;
+
+
     
 #[derive(Component)]
 pub struct Velocity(Vec2);
@@ -51,6 +56,19 @@ pub struct SafeZone;
 
 static SAFEZONE_SIZE:f32 = 2000.0;
 
+static BACKGROUND_Z_OFFSET: f32 = -100.0;
+static SAFEZONE_Z_OFFSET: f32 = -50.0;
+static SCORE_TEXT_Z_OFFSET: f32 = -10.0;
+static PLAYER_Z_OFFSET: f32 = 0.0;
+static WEAPON_Z_OFFSET: f32 = 1.0;
+static ASTERIOD_Z_OFFSET:f32 = 2.0;
+static PARTICLE_Z_OFFSET: f32 = 5.0;
+
+
+static SCORE_TEXT_OFFSET:Vec2 = Vec2{ x: -400.0, y: -280.0};
+
+
+
 
 
 fn main() {
@@ -70,7 +88,9 @@ fn main() {
                 handle_asteriod_bullet_collision,
                 update_score,
                 check_player_in_safezone,
-                fadeout_sprites
+                fadeout_sprites,
+                move_background_with_player,
+                move_scoreboard_with_player
             ))
         .run()
 }
@@ -89,8 +109,8 @@ fn setup(
     commands.spawn(
         MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(SAFEZONE_SIZE).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::GRAY)),
-            transform: Transform::from_xyz(0.0, 0.0, -20.0),
+            material: materials.add(ColorMaterial::from(Color::YELLOW.with_a(0.02))),
+            transform: Transform::from_xyz(0.0, 0.0, SAFEZONE_Z_OFFSET),
             ..default()
         }).insert(SafeZone);
 
@@ -101,6 +121,7 @@ fn setup(
                 ..default()
             },
             texture: asset_server.load("spaceship.png"),
+            transform: Transform::from_xyz(0.0, 0.0, PLAYER_Z_OFFSET),
             ..default()
         }).insert((Velocity(Vec2 { x: 0., y: 0. }), Player, Health(100.)));
 
@@ -111,10 +132,24 @@ fn setup(
                     sections: vec![TextSection::new("Score: ", text_style.clone()), TextSection::new("", text_style.clone())], 
                     ..default()
                 },
+                transform: Transform::from_xyz(0.0, 0.0, SCORE_TEXT_Z_OFFSET),
                 ..default()
         }).insert(Scoreboard);
 
+
+        let background: Handle<Image> = asset_server.load("background.png");
+
         commands.spawn(Camera2dBundle::default());
+        
+        commands.spawn(SpriteBundle{
+            sprite: Sprite{
+                custom_size: Some(Vec2::new(1280.0, 720.0)),
+                ..default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, BACKGROUND_Z_OFFSET),
+            texture: background,
+            ..default()
+        }).insert(Background);
 
 
         commands.insert_resource(AsteriodSpawner{timer: Timer::from_seconds(2.0, TimerMode::Repeating), current_duration: 2.0});
@@ -138,6 +173,26 @@ fn move_camera_with_player(
     player: Query<& Transform, (With<Player>, Without<Camera2d>)>
 ){
     camera.single_mut().translation = player.single().translation;
+}
+
+fn move_background_with_player(
+    mut background: Query<&mut Transform, (With<Background>, Without<Player>)>,
+    player: Query<& Transform, (With<Player>, Without<Background>)>
+){
+    let mut translation = player.single().translation;
+    translation.z = BACKGROUND_Z_OFFSET;
+    background.single_mut().translation = translation;
+}
+
+fn move_scoreboard_with_player(
+    mut scoreboard: Query<&mut Transform, (With<Scoreboard>, Without<Player>)>,
+    player: Query<& Transform, (With<Player>, Without<Scoreboard>)>
+){
+    let mut pos = player.single().clone().translation;
+    pos.x += SCORE_TEXT_OFFSET.x;
+    pos.y +=SCORE_TEXT_OFFSET.y;
+    pos.z = SCORE_TEXT_Z_OFFSET;
+    scoreboard.single_mut().translation = pos;
 }
 
 fn check_player_in_safezone(
@@ -202,8 +257,11 @@ fn handle_asteriod_bullet_collision(
             if bullet_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
                 // shrink asteriod when taking damage
                 asteriod_health.0-= damage.damage;
-                
-                commands.spawn(ParticleBundle::new(&mut asset_server, bullet_transform.translation.clone()));
+
+                let mut particle_pos = bullet_transform.translation.clone();
+                particle_pos.z = PARTICLE_Z_OFFSET;
+                commands.spawn(ParticleBundle::new(&mut asset_server, particle_pos));
+
                 commands.entity(bullet).despawn();
             }
         }
@@ -212,13 +270,19 @@ fn handle_asteriod_bullet_collision(
                 if asteriod_health.0 < 2.0 * damage.damage{
                     score.0+=1;
                     asteriod_health.0 -= 2.0 * damage.damage;
+
+                    let mut particle_pos = missile_transform.translation.clone();
+                    particle_pos.z = PARTICLE_Z_OFFSET;
                     for _i in 0..10{
-                        commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
+                        commands.spawn(ParticleBundle::new(&mut asset_server, particle_pos));
                     }
                 }
                 else{
                     asteriod_health.0-= damage.damage;
-                    commands.spawn(ParticleBundle::new(&mut asset_server, missile_transform.translation.clone()));
+
+                    let mut particle_pos = missile_transform.translation.clone();
+                    particle_pos.z = PARTICLE_Z_OFFSET;
+                    commands.spawn(ParticleBundle::new(&mut asset_server, particle_pos));
                 }
                 commands.entity(missile).despawn();
             }
@@ -280,7 +344,7 @@ fn fire_weaponry(
             commands
                 .spawn(MaterialMesh2dBundle {
                     mesh: meshes.add(shape::Circle::new(5.).into()).into(),
-                    material: materials.add(ColorMaterial::from(Color::DARK_GRAY)),
+                    material: materials.add(ColorMaterial::from(Color::ORANGE)),
                     transform: query.single().clone(),
                     ..default()
                 })
