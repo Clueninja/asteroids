@@ -58,11 +58,11 @@ static SAFEZONE_SIZE:f32 = 2000.0;
 
 static BACKGROUND_Z_OFFSET: f32 = -100.0;
 static SAFEZONE_Z_OFFSET: f32 = -50.0;
-static SCORE_TEXT_Z_OFFSET: f32 = -10.0;
 static PLAYER_Z_OFFSET: f32 = 0.0;
 static WEAPON_Z_OFFSET: f32 = 1.0;
 static ASTERIOD_Z_OFFSET:f32 = 2.0;
 static PARTICLE_Z_OFFSET: f32 = 5.0;
+static SCORE_TEXT_Z_OFFSET: f32 = 10.0;
 
 
 static SCORE_TEXT_OFFSET:Vec2 = Vec2{ x: -400.0, y: -280.0};
@@ -237,6 +237,7 @@ fn update_score(
     let (player_transform, player_sprite) = player_query.single();
     for (asteriod_transform, asteriod_sprite) in &asteriod_query{
         // if colliding set score to 0
+        // need to ignore z 
         if player_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + player_sprite.custom_size.unwrap().x/2.0){
             score.0 = 0;
         }
