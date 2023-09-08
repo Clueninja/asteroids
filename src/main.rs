@@ -16,8 +16,6 @@ pub struct Scoreboard;
 
 #[derive(Component)]
 pub struct Background;
-
-
     
 #[derive(Component)]
 pub struct Velocity(Vec2);
@@ -143,7 +141,7 @@ fn setup(
         
         commands.spawn(SpriteBundle{
             sprite: Sprite{
-                custom_size: Some(Vec2::new(1280.0, 720.0)),
+                custom_size: Some(Vec2::new(1300.0, 740.0)),
                 ..default()
             },
             transform: Transform::from_xyz(0.0, 0.0, BACKGROUND_Z_OFFSET),
@@ -211,7 +209,7 @@ fn check_player_in_safezone(
     }
 }
 
-fn handle_asteriod_collision(
+fn _handle_asteriod_collision(
     mut asteriod_query: Query<(Entity, &mut Transform, &mut Sprite, &mut Velocity), With<Asteriod>>,
 ){
     let mut iter = asteriod_query.iter_combinations_mut();
@@ -244,7 +242,7 @@ fn update_score(
     }
 }
 
-// Fix bugs
+// TODO: Fix bugs
 fn handle_asteriod_bullet_collision(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -256,7 +254,6 @@ fn handle_asteriod_bullet_collision(
     for(asteriod, asteriod_transform,mut asteriod_health, mut asteriod_sprite) in &mut asteriod_query{
         for (bullet, bullet_transform, damage) in &bullet_query{
             if bullet_transform.translation.distance(asteriod_transform.translation) < (asteriod_sprite.custom_size.unwrap().x/2.0 + 10.0){
-                // shrink asteriod when taking damage
                 asteriod_health.0-= damage.damage;
 
                 let mut particle_pos = bullet_transform.translation.clone();
@@ -327,6 +324,7 @@ fn cursor_position(
 }
 
 // If spacebar is pressed, spawn a new Entity, with Bullet, and timeout components with a circle sprite
+// TODO: Add weapon z offset
 fn fire_weaponry(
     mut commands: Commands,
     mouse_button_input: Res<Input<MouseButton>>,
@@ -401,6 +399,7 @@ fn move_player(
 }
 
 // automatically update all entities that have the Timeout Component
+// TODO: Switch to Timer
 fn update_timeout(
     mut commands: Commands,
     time: Res<Time>,
