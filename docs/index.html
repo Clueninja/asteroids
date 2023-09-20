@@ -30,14 +30,22 @@
         }
       }
     </style>
+    
   </head>
-  <script type="module">
-    import init from './asteriods.js'
-        
-    init().catch((error) => {
-        if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
-            throw error;
-        }
-    });
-  </script>
+  <body>
+    <button style="text-align: center;" onClick="runGame()">Click to Load Game</button>
+
+    <script type="module">
+      import init from './asteriods.js'
+      function runGame() {
+        init().catch((error) => {
+            if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
+                throw error;
+            }
+        });
+      }
+    </script>
+    
+  </body>
+ 
 </html>
